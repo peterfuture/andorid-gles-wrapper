@@ -4,6 +4,7 @@ package com.dttv.gles2;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
+import android.os.SystemClock;
 
 import java.util.Set;
 
@@ -30,7 +31,10 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         mSquare = new Square();
     }
 
+    private float[] mRotationMatrix = new float[16];
     public void onDrawFrame(GL10 unused) {
+        float[] scratch = new float[16];
+
         // Redraw background color
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
 
@@ -38,8 +42,18 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         Matrix.setLookAtM(mViewMatrix, 0, 0, 0, -3, 0f, 0f, 0f, 0f, 1.0f, 0.0f);
         // Calculate the projection and view transformation
         Matrix.multiplyMM(mMVPMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
+
+        // Create a rotation transformation for the triangle
+        long time = SystemClock.uptimeMillis() % 4000L;
+        float angle = 0.090f * ((int) time);
+        Matrix.setRotateM(mRotationMatrix, 0, angle, 0, 0, -1.0f);
+        // Combine the rotation matrix with the projection and camera view
+        // Note that the mMVPMatrix factor *must be first* in order
+        // for the matrix multiplication product to be correct.
+        Matrix.multiplyMM(scratch, 0, mMVPMatrix, 0, mRotationMatrix, 0);
+
         // Draw shape
-        mTriangle.draw(mMVPMatrix);
+        mTriangle.draw(scratch);
     }
 
     public void onSurfaceChanged(GL10 unused, int width, int height) {
