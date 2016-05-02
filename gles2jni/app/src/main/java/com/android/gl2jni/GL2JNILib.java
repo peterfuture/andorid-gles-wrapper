@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 The Android Open Source Project
+ * Copyright (C) 2007 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,15 +12,22 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * This file wraps the es3 stub file to current workaround Studio limitation:
- *     stub file is needed for ES3 systems
- *     stub file is NOT needed for ES3 systems
- * DYNAMIC_ES3 is defined in build_gradle when building for ES2, it is not defined for ES3 systems
  */
 
-#ifdef DYNAMIC_ES3
+package com.android.gl2jni;
 
-#include "gl3stub.c.inc"
+// Wrapper for native library
 
-#endif
+public class GL2JNILib {
+
+     static {
+         System.loadLibrary("gl2jni");
+     }
+
+    /**
+     * @param width the current view width
+     * @param height the current view height
+     */
+     public static native void init(int width, int height);
+     public static native void step();
+}

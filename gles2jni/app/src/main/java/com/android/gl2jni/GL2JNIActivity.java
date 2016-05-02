@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 The Android Open Source Project
+ * Copyright (C) 2007 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.gles3jni;
+package com.android.gl2jni;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -23,14 +23,15 @@ import android.view.WindowManager;
 
 import java.io.File;
 
-public class GLES3JNIActivity extends Activity {
 
-    GLES3JNIView mView;
+public class GL2JNIActivity extends Activity {
+
+    GL2JNIView mView;
 
     @Override protected void onCreate(Bundle icicle) {
         super.onCreate(icicle);
-        mView = new GLES3JNIView(getApplication());
-        setContentView(mView);
+        mView = new GL2JNIView(getApplication());
+	setContentView(mView);
     }
 
     @Override protected void onPause() {

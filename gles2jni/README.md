@@ -1,15 +1,10 @@
-gles3jni
+Hello GL2
 =========
-gles3jni is an Android C++ sample that demonstrates how to use OpenGL ES 3.0 from JNI/native code.
+Hello GL2 is an Android C++ sample that draws a triangle using GLES 2.0 API.
 
-The OpenGL ES 3.0 rendering path uses a few new features compared to the
-OpenGL ES 2.0 path:
-- Instanced rendering and vertex attribute divisor to reduce the number of
-  draw calls and uniform changes.
-- Vertex array objects to reduce the number of calls required to set up
-  vertex attribute state on each frame.
-- Explicit assignment of attribute locations, eliminating the need to query
-  assignments.
+It uses JNI to do the rendering in C++ over a
+[GLSurfaceView](http://developer.android.com/reference/android/opengl/GLSurfaceView.html)
+created from a regular Android Java Activity.
 
 This sample uses the new [Gradle Experimental Android plugin](http://tools.android.com/tech-docs/new-build-system/gradle-experimental) with C++ support.
 

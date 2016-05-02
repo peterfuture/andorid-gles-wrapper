@@ -6,18 +6,18 @@ model {
         buildToolsVersion = "23.0.2"
 
         defaultConfig.with {
-            applicationId = "com.android.gles3jni"
-            minSdkVersion.apiLevel    = 18
+            applicationId    = "com.android.gl2jni"
+            minSdkVersion.apiLevel    = 5
             targetSdkVersion.apiLevel = 23
         }
     }
+
     android.ndk {
-        moduleName  = "gles3jni"
-        cppFlags.addAll(["-Werror", "-fno-rtti", "-fno-exceptions"])
-	CFlags.add("-Werror")
-        ldLibs.addAll(["log","GLESv3", "EGL"])
-        stl         = "stlport_static"
+        moduleName = "gl2jni"
+        cppFlags.add("-Werror")
+        ldLibs.addAll(["log", "GLESv2"])
     }
+
     android.buildTypes {
         release {
             minifyEnabled = false
