@@ -34,10 +34,10 @@ static const char gFragmentShader[] =
                 "  gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);\n"
                 "}\n";
 
-GLuint gProgram;
-GLuint gvPositionHandle;
+static GLuint gProgram;
+static GLuint gvPositionHandle;
 
-bool setupGraphics(int w, int h) {
+bool triangle_setupGraphics(int w, int h) {
     printGLString("Version", GL_VERSION);
     printGLString("Vendor", GL_VENDOR);
     printGLString("Renderer", GL_RENDERER);
@@ -56,13 +56,14 @@ bool setupGraphics(int w, int h) {
 
     glViewport(0, 0, w, h);
     checkGlError("glViewport");
+
     return true;
 }
 
 const GLfloat gTriangleVertices[] = { 0.0f, 0.5f, -0.5f, -0.5f,
                                       0.5f, -0.5f };
 
-void renderFrame() {
+void triangle_renderFrame() {
     static float grey;
     grey += 0.01f;
     if (grey > 1.0f) {
