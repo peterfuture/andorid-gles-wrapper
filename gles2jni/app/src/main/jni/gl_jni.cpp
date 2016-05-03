@@ -19,6 +19,7 @@
 #include <jni.h>
 
 #include "gl_triangle.h"
+#include "gl_yuv.h"
 
 extern "C" {
     JNIEXPORT void JNICALL Java_com_android_gl2jni_GL2JNILib_init(JNIEnv * env, jobject obj,  jint width, jint height);
@@ -27,10 +28,12 @@ extern "C" {
 
 JNIEXPORT void JNICALL Java_com_android_gl2jni_GL2JNILib_init(JNIEnv * env, jobject obj,  jint width, jint height)
 {
-    triangle_setupGraphics(width, height);
+    //triangle_setupGraphics(width, height);
+    yuv_setupGraphics(width, height);
 }
 
 JNIEXPORT void JNICALL Java_com_android_gl2jni_GL2JNILib_step(JNIEnv * env, jobject obj)
 {
-    triangle_renderFrame();
+    //triangle_renderFrame();
+    yuv_renderFrame();
 }
