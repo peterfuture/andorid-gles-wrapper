@@ -27,63 +27,125 @@ static void printGLString(const char *name, GLenum s) {
     LOGI("GL %s = %s\n", name, v);
 }
 
-static const char gVertexShader[] =
-        "attribute vec4 vPosition;    \n"
-        "attribute vec2 a_texCoord;   \n"
-        "varying vec2 tc;     \n"
-        "void main()                  \n"
-        "{                            \n"
-        "   gl_Position = vPosition;  \n"
-        "   tc = a_texCoord;  \n"
-        "}                            \n";
+const char gVertextShader[] = {
+        "attribute vec4 aPosition;\n"
+        "attribute vec2 aTextureCoord;\n"
+        "varying vec2 vTextureCoord;\n"
+        "void main() {\n"
+        "  gl_Position = aPosition;\n"
+        "  vTextureCoord = aTextureCoord;\n"
+        "}\n" };
 
-static const char gFragmentShader[] =
-        "varying lowp vec2 tc;\n"
-        "uniform sampler2D SamplerY;\n"
-        "uniform sampler2D SamplerU;\n"
-        "uniform sampler2D SamplerV;\n"
-        "void main(void)\n"
-        "{\n"
-            "mediump vec3 yuv;\n"
-            "lowp vec3 rgb;\n"
-            "yuv.x = texture2D(SamplerY, tc).r;\n"
-            "yuv.y = texture2D(SamplerU, tc).r - 0.5;\n"
-            "yuv.z = texture2D(SamplerV, tc).r - 0.5;\n"
-            "rgb = mat3( 1,   1,   1,\n"
-                        "0, -0.39465, 2.03211,\n"
-                        "1.13983, -0.58060, 0) * yuv;\n"
-            "gl_FragColor = vec4(rgb, 1);\n"
-        "}\n";
+// The fragment shader.
+// Do YUV to RGB565 conversion.
+static const char gFragmentShader[] = {
+        "precision mediump float;\n"
+        "uniform sampler2D Ytex;\n"
+        "uniform sampler2D Utex,Vtex;\n"
+        "varying vec2 vTextureCoord;\n"
+        "void main(void) {\n"
+        "  float nx,ny,r,g,b,y,u,v;\n"
+        "  mediump vec4 txl,ux,vx;"
+        "  nx=vTextureCoord[0];\n"
+        "  ny=vTextureCoord[1];\n"
+        "  y=texture2D(Ytex,vec2(nx,ny)).r;\n"
+        "  u=texture2D(Utex,vec2(nx,ny)).r;\n"
+        "  v=texture2D(Vtex,vec2(nx,ny)).r;\n"
+
+        //"  y = v;\n"+
+        "  y=1.1643*(y-0.0625);\n"
+        "  u=u-0.5;\n"
+        "  v=v-0.5;\n"
+
+        "  r=y+1.5958*v;\n"
+        "  g=y-0.39173*u-0.81290*v;\n"
+        "  b=y+2.017*u;\n"
+        "  gl_FragColor=vec4(r,g,b,1.0);\n"
+        "}\n" };
 
 static GLuint gProgram;
-static GLuint gvPositionHandle;
+static GLuint positionHandle;
+static GLuint textureHandle;
 
-static GLuint g_texYId;
-static GLuint g_texUId;
-static GLuint g_texVId;
+static GLuint g_textureIds[3];
+static GLuint g_textureWidth = 0;
+static GLuint g_textureHeight = 0;
+
+const char g_indices[] = { 0, 3, 2, 0, 2, 1 };
+
+const GLfloat g_vertices[20] = {
+        // X, Y, Z, U, V
+        -1, -1, 0, 0, 1, // Bottom Left
+        1, -1, 0, 1, 1, //Bottom Right
+        1, 1, 0, 1, 0, //Top Right
+        -1, 1, 0, 0, 0 }; //Top Left
 
 bool yuv_setupGraphics(int w, int h) {
     printGLString("Version", GL_VERSION);
     printGLString("Vendor", GL_VENDOR);
     printGLString("Renderer", GL_RENDERER);
     printGLString("Extensions", GL_EXTENSIONS);
-
     LOGI("setupGraphics(%d, %d)", w, h);
-    gProgram = createProgram(gVertexShader, gFragmentShader);
+
+    int maxTextureImageUnits[2];
+    int maxTextureSize[2];
+    glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, maxTextureImageUnits);
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, maxTextureSize);
+    LOGI("%s: number of textures %d, size %d", __FUNCTION__, (int) maxTextureImageUnits[0], (int) maxTextureSize[0]);
+
+    gProgram = createProgram(gVertextShader, gFragmentShader);
     if (!gProgram) {
         LOGE("Could not create program.");
         return false;
     }
-    gvPositionHandle = glGetAttribLocation(gProgram, "vPosition");
-    checkGlError("glGetAttribLocation");
-    LOGI("glGetAttribLocation(\"vPosition\") = %d\n", gvPositionHandle);
 
-    /* texture */
-    glGenTextures(1, &g_texYId);
-    checkGlError("glGenTextures");
-    glGenTextures(1, &g_texUId);
-    glGenTextures(1, &g_texVId);
-    checkGlError("glGenTextures");
+    positionHandle = glGetAttribLocation(gProgram, "aPosition");
+    checkGlError("glGetAttribLocation");
+    if (positionHandle == -1) {
+        LOGI("%s: Could not get aPosition handle", __FUNCTION__);
+        return -1;
+    }
+
+    textureHandle = glGetAttribLocation(gProgram, "aTextureCoord");
+    checkGlError("glGetAttribLocation");
+    if (textureHandle == -1) {
+        LOGI("%s: Could not get aTextureCoord handle", __FUNCTION__);
+        return -1;
+    }
+
+    // set the vertices array in the shader
+    // _vertices contains 4 vertices with 5 coordinates.
+    // 3 for (xyz) for the vertices and 2 for the texture
+    glVertexAttribPointer(positionHandle, 3, GL_FLOAT, false, 5 * sizeof(GLfloat), g_vertices);
+    checkGlError("glVertexAttribPointer aPosition");
+
+    glEnableVertexAttribArray(positionHandle);
+    checkGlError("glEnableVertexAttribArray positionHandle");
+
+    // set the texture coordinate array in the shader
+    // _vertices contains 4 vertices with 5 coordinates.
+    // 3 for (xyz) for the vertices and 2 for the texture
+    glVertexAttribPointer(textureHandle, 2, GL_FLOAT, false, 5 * sizeof(GLfloat), &g_vertices[3]);
+    checkGlError("glVertexAttribPointer maTextureHandle");
+    glEnableVertexAttribArray(textureHandle);
+    checkGlError("glEnableVertexAttribArray textureHandle");
+
+
+    glUseProgram(gProgram);
+    int i = glGetUniformLocation(gProgram, "Ytex");
+    checkGlError("glGetUniformLocation");
+    glUniform1i(i, 0); /* Bind Ytex to texture unit 0 */
+    checkGlError("glUniform1i Ytex");
+
+    i = glGetUniformLocation(gProgram, "Utex");
+    checkGlError("glGetUniformLocation Utex");
+    glUniform1i(i, 1); /* Bind Utex to texture unit 1 */
+    checkGlError("glUniform1i Utex");
+
+    i = glGetUniformLocation(gProgram, "Vtex");
+    checkGlError("glGetUniformLocation");
+    glUniform1i(i, 2); /* Bind Vtex to texture unit 2 */
+    checkGlError("glUniform1i");
 
     glViewport(0, 0, w, h);
     checkGlError("glViewport");
@@ -92,78 +154,84 @@ bool yuv_setupGraphics(int w, int h) {
     return true;
 }
 
-static GLuint bindTexture(GLuint texture, const uint8_t *buffer, GLuint w , GLuint h)
+void setupTextures(uint8_t* data, GLsizei width, GLsizei height)
 {
-    glBindTexture ( GL_TEXTURE_2D, texture);
-    glTexImage2D ( GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, buffer);
-    checkGlError("glTexImage2D");
-#if 1
-    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-#endif
-    return texture;
+    glGenTextures(3, g_textureIds); //Generate  the Y, U and V texture
+
+    GLuint currentTextureId = g_textureIds[0]; // Y
+    glActiveTexture( GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, currentTextureId);
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0,
+                 GL_LUMINANCE, GL_UNSIGNED_BYTE,
+                 (const GLvoid*) data);
+
+    currentTextureId = g_textureIds[1]; // U
+    glActiveTexture( GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, currentTextureId);
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    uint8_t* uComponent = data + width * height;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width / 2, height / 2, 0,
+                 GL_LUMINANCE, GL_UNSIGNED_BYTE, (const GLvoid*) uComponent);
+
+    currentTextureId = g_textureIds[2]; // V
+    glActiveTexture( GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, currentTextureId);
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    uint8_t * vComponent = uComponent + (width * height) / 4;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width / 2, height / 2, 0,
+                 GL_LUMINANCE, GL_UNSIGNED_BYTE, (const GLvoid*) vComponent);
+    checkGlError("SetupTextures");
+
+    g_textureWidth = width;
+    g_textureHeight = height;
 }
 
-enum {
-    ATTRIB_VERTEX,
-    ATTRIB_TEXTURE,
-};
-static void draw()
+
+void UpdateTextures(uint8_t *data, GLsizei width, GLsizei height)
 {
-    static GLfloat squareVertices[] = {
-            -1.0f, -1.0f,
-            1.0f, -1.0f,
-            -1.0f,  1.0f,
-            1.0f,  1.0f,
-    };
-
-    static GLfloat coordVertices[] = {
-            0.0f, 1.0f,
-            1.0f, 1.0f,
-            0.0f,  0.0f,
-            1.0f,  0.0f,
-    };
-
-    glClearColor(0.5f, 0.5f, 0.5f, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glUseProgram(gProgram);
-    checkGlError("glUseProgram");
-
-    GLint tex_y = glGetUniformLocation(gProgram, "SamplerY");
-    GLint tex_u = glGetUniformLocation(gProgram, "SamplerU");
-    GLint tex_v = glGetUniformLocation(gProgram, "SamplerV");
-    checkGlError("glGetUniformLocation");
-
-    glBindAttribLocation(gProgram, ATTRIB_VERTEX, "vPosition");
-    glVertexAttribPointer(ATTRIB_VERTEX, 2, GL_FLOAT, 0, 0, squareVertices);
-    glEnableVertexAttribArray(ATTRIB_VERTEX);
-
-    glBindAttribLocation(gProgram, ATTRIB_TEXTURE, "a_texCoord");
-    glVertexAttribPointer(ATTRIB_TEXTURE, 2, GL_FLOAT, 0, 0, coordVertices);
-    glEnableVertexAttribArray(ATTRIB_TEXTURE);
-
+    GLuint currentTextureId = g_textureIds[0]; // Y
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, g_texYId);
-    glUniform1i(tex_y, 0);
+    glBindTexture(GL_TEXTURE_2D, currentTextureId);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE,
+                    GL_UNSIGNED_BYTE, (const GLvoid*) data);
 
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, g_texUId);
-    glUniform1i(tex_u, 1);
+    currentTextureId = g_textureIds[1]; // U
+    glActiveTexture( GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, currentTextureId);
+    uint8_t* uComponent = data + width * height;
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width / 2, height / 2,
+                    GL_LUMINANCE, GL_UNSIGNED_BYTE, (const GLvoid*) uComponent);
 
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, g_texVId);
-    glUniform1i(tex_v, 2);
-
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    checkGlError("glDrawArrays");
-    LOGI("YUV setup graphics ok");
+    currentTextureId = g_textureIds[2]; // V
+    glActiveTexture( GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, currentTextureId);
+    uint8_t* vComponent = uComponent + (width * height) / 4;
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width / 2, height / 2,
+                    GL_LUMINANCE, GL_UNSIGNED_BYTE, (const GLvoid*) vComponent);
+    checkGlError("UpdateTextures");
 }
 
 #define FRAME_PATH "/data/frame_1024_576.yuv"
-void yuv_renderFrame() {
+void yuv_renderFrame()
+{
 
     uint8_t *data;
     int width;
@@ -188,9 +256,21 @@ void yuv_renderFrame() {
 
 #endif
 
-    bindTexture(g_texYId, data, width, height);
-    bindTexture(g_texUId, data + width * height, width/2, height/2);
-    bindTexture(g_texVId, data + width * height * 5 / 4, width/2, height/2);
+    glUseProgram(gProgram);
+    checkGlError("glUseProgram");
 
-    draw();
+    if (g_textureWidth != width ||
+        g_textureHeight != height) {
+        setupTextures(data, width, height);
+    }
+    else {
+        UpdateTextures(data, width, height);
+    }
+
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, g_indices);
+    checkGlError("glDrawArrays");
+#ifdef GL_TEST_YUV
+    free(data);
+#endif
+
 }
